@@ -47,17 +47,23 @@ Because the production model was upgraded to **v2 (9 features)**, Person 3 and P
   - Update `FEATURES` array to include `'HouseAge'` and `'TotalFlrSF'`.
   - Update `PredictionRow` / `HouseData` Pydantic class:
     ```python
+    from pydantic import BaseModel, Field
+
     class PredictionRow(BaseModel):
         LotArea: int
         YearBuilt: int
-        1stFlrSF: int
-        2ndFlrSF: int
+        FirstFlrSF: int  = Field(alias="1stFlrSF")
+        SecondFlrSF: int = Field(alias="2ndFlrSF")
         FullBath: int
         BedroomAbvGr: int
         TotRmsAbvGrd: int
-        HouseAge: int      # <-- REQUIRED NEW FIELD
-        TotalFlrSF: int    # <-- REQUIRED NEW FIELD
+        HouseAge: int
+        TotalFlrSF: int
+
+        class Config:
+            populate_by_name = True
     ```
+    > *Note for Person 3:* Python attribute names cannot start with a digit, so `1stFlrSF`/`2ndFlrSF` are exposed as Pydantic aliases (`alias="1stFlrSF"` / `alias="2ndFlrSF"`); the model's actual feature column names stay `1stFlrSF`/`2ndFlrSF`. (This is reference guidance for Person 3's implementation, not written code).
 - [ ] **Streamlit App:**
   - Add input widgets (or compute on the fly: `HouseAge = YrSold - YearBuilt`, `TotalFlrSF = 1stFlrSF + 2ndFlrSF`).
   - Pass the updated 9-feature payload JSON to the FastAPI endpoint.

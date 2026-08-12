@@ -80,7 +80,7 @@ The exported artifacts were reloaded and verified on the following test case:
 
 - [ ] **FastAPI Backend (`main.py`) — Person 3**
   - Add `'HouseAge'` and `'TotalFlrSF'` to the model feature list.
-  - Update `PredictionRow`/`HouseData` Pydantic class to include `HouseAge: int` and `TotalFlrSF: int`.
+  - Update `PredictionRow`/`HouseData` Pydantic class to include `HouseAge: int` and `TotalFlrSF: int` (note: use `Field(alias="1stFlrSF")` and `Field(alias="2ndFlrSF")` since Python attributes cannot start with a digit).
 - [ ] **Streamlit Frontend App — Person 3**
   - Add user input widgets for the new features.
   - Alternatively, compute them dynamically in the UI code:
