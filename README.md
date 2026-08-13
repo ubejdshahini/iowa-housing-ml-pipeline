@@ -31,7 +31,7 @@ Dataset (Kaggle)  ->  Notebook (analiza + model)  ->  iowa_model.pkl
 | Features + Modeli (v1, 7 features) | Person 2 | ✅ |
 | Feature engineering v2 (9 features) | Person 2 | ✅ |
 | Krahasimi v1 vs v2 (grafik në notebook) | Person 2 | ✅ |
-| Backend (FastAPI + Databricks) | Person 3 | ⏳ |
+| Backend (FastAPI + Databricks) | Person 3 | ✅ |
 | Frontend (Streamlit) + Prezantimi | Person 4 | ⏳ |
 
 ---
@@ -46,6 +46,8 @@ iowa-housing-ml-pipeline/
 ├── iowa_model.pkl          # modeli final Random Forest v2
 ├── iowa_features.pkl       # lista e 9 features (rendi i saktë)
 ├── sample_houses.csv       # 5 shtëpi shembull (9 kolona)
+├── main.py                 # FastAPI: predict-csv + ruajtja në Databricks
+├── .env.example            # konfigurimi shembull pa sekrete
 ├── results_summary.md      # përmbledhja e rezultateve
 ├── requirements.txt
 └── README.md
@@ -120,7 +122,7 @@ Përgjegjës: Person 1 + Person 2.
 
 ---
 
-# PJESA 2 — Deployment (⏳ NË VAZHDIM — Person 3 + Person 4)
+# PJESA 2 — Deployment (Backend ✅, Streamlit ⏳ — Person 3 + Person 4)
 
 Merrni setup-in sample `github.com/xoniks/databricks-fastapi-streamlit` dhe zëvendësoni modelin me tonin.
 
@@ -149,8 +151,8 @@ Merrni setup-in sample `github.com/xoniks/databricks-fastapi-streamlit` dhe zëv
    Para `model.predict(...)`: `df = pd.DataFrame([row.model_dump(by_alias=True)])[features]`.
 
 5. **Pin sklearn** — modeli u ruajt me scikit-learn **1.8.0**; vendose të njëjtin version në `requirements.txt`.
-6. **Krijo `.env`** — `API_KEY`, `DATABRICKS_SERVER_HOSTNAME`, `DATABRICKS_HTTP_PATH`, `DATABRICKS_TOKEN` (kurrë mos e ngarko në GitHub).
-7. **Nis FastAPI** — `uvicorn main:app --reload` → `http://127.0.0.1:8000/docs` → provo `/predict-csv` me `sample_houses.csv` (9 kolona).
+6. **Krijo `.env`** — kopjo `.env.example` në `.env` dhe plotëso `API_KEY`, `DATABRICKS_SERVER_HOSTNAME`, `DATABRICKS_HTTP_PATH`, `DATABRICKS_TOKEN` dhe `DATABRICKS_TABLE` (kurrë mos e ngarko `.env` në GitHub).
+7. **Nis FastAPI** — `py -m uvicorn main:app --host 127.0.0.1 --port 8001 --reload` → `http://127.0.0.1:8001/docs` → provo `/predict-csv` me `sample_houses.csv` (9 kolona). API-ja ofron `GET /` për health check, `POST /predict-csv` për parashikime dhe `POST /save-predictions` për ruajtje në Databricks; dy endpoint-et POST mbrohen me header-in `X-API-Key`.
 8. **Tabela në Databricks (2 kolona shtesë):**
 
    ```sql
@@ -192,10 +194,10 @@ Bëni një provë gjenerale të plotë; mbani gati edhe screenshots si rezervë.
 - [x] `iowa_model.pkl` + `iowa_features.pkl` (9 features) të krijuara dhe testuara.
 - [x] `sample_houses.csv` me 9 kolonat e sakta.
 - [x] Grafiku i krahasimit v1 vs v2 në notebook.
-- [ ] FastAPI: klasa Pydantic me aliase + 9 features; `/predict-csv` kthen çmime.
-- [ ] `requirements.txt` me sklearn version të pinuar.
-- [ ] Tabela `iowa_preditions` me 2 kolonat e reja në Databricks.
-- [ ] `/save-predictions` ruan rreshta që duken në Databricks.
+- [x] FastAPI: klasa Pydantic me aliase + 9 features; `/predict-csv` kthen çmime.
+- [x] `requirements.txt` me sklearn version të pinuar.
+- [x] Tabela `iowa_preditions` me 2 kolonat e reja në Databricks.
+- [x] `/save-predictions` ruan rreshta që duken në Databricks.
 - [ ] Streamlit dërgon 9 features, bën parashikime + ruajtje.
 - [ ] Slajdet gati dhe prova gjenerale e bërë.
 
