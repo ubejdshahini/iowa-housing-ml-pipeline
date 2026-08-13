@@ -2,3 +2,11 @@ pandas
 numpy
 matplotlib
 seaborn
+fastapi[standard]
+streamlit
+joblib
+databricks-sql-connector
+scikit-learn==1.8.0
+python-dotenv
+requests
+python-multipart
