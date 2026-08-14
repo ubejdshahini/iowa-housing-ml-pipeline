@@ -75,6 +75,8 @@ uploaded_file = st.file_uploader(
 # IF FILE WAS UPLOADED
 # =========================================================
 
+missing_features = []
+
 if uploaded_file is not None:
 
     # Read CSV
@@ -172,7 +174,7 @@ if (
                 ] = predictions
 
                 st.success(
-                    "redictions generated successfully!"
+                    "Predictions generated successfully!"
                 )
 
             # -------------------------------------------------
@@ -250,6 +252,7 @@ if "predictions" in st.session_state:
     )
 
 
+
     # -----------------------------------------------------
     # PRICE SUMMARY
     # -----------------------------------------------------
@@ -280,6 +283,7 @@ if "predictions" in st.session_state:
                 "Maximum Predicted Price",
                 f"${prediction_df['predicted_price'].max():,.2f}"
             )
+
 
 
     # =====================================================
@@ -347,3 +351,13 @@ if "predictions" in st.session_state:
             st.error(
                 f"Unexpected error: {e}"
             )
+
+
+    csv = prediction_df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label="Download Predictions CSV",
+        data=csv,
+        file_name="iowa_house_predictions.csv",
+        mime="text/csv",
+    )
