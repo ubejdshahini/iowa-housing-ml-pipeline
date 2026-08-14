@@ -15,7 +15,7 @@ Ky është plani origjinal i përditësuar sipas punës së kryer deri më tani 
 | Feature engineering v2 (9 features) | Person 2 | ✅ E kryer |
 | Krahasimi v1 vs v2 (grafik në notebook) | Person 2 | ✅ E kryer |
 | Backend (FastAPI + Databricks) | Person 3 | ⏳ Në vazhdim |
-| Frontend (Streamlit) + Prezantimi | Person 4 | ⏳ Në vazhdim |
+| Frontend (Streamlit) + Prezantimi | Person 4 |✅ E kryer |
 
 **Deliverables ekzistuese në repo:** `eda.py`, `model.ipynb`, `iowa_model.pkl`, `iowa_features.pkl`, `sample_houses.csv`, `results_summary.md`.
 

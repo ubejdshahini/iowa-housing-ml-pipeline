@@ -3,10 +3,6 @@ import requests
 import pandas as pd
 
 
-# =========================================================
-# PAGE CONFIGURATION
-# =========================================================
-
 st.set_page_config(
     page_title="Iowa House Price Predictor",
     page_icon="🏠",
@@ -14,17 +10,12 @@ st.set_page_config(
 )
 
 
-# =========================================================
-# TITLE
-# =========================================================
-
 st.title("Iowa House Price Predictor")
 
 st.write(
     """
     Upload a CSV containing Iowa house information.
-    The trained machine learning model will predict
-    the house price using the FastAPI backend.
+    HouseAge and TotalFlrSF are calculated automatically.
     """
 )
 
@@ -43,10 +34,21 @@ HEADERS = {
 
 
 # =========================================================
-# REQUIRED MODEL FEATURES
+# FEATURES
 # =========================================================
 
-FEATURES = [
+INPUT_FEATURES = [
+    "LotArea",
+    "YearBuilt",
+    "1stFlrSF",
+    "2ndFlrSF",
+    "FullBath",
+    "BedroomAbvGr",
+    "TotRmsAbvGrd",
+    "YrSold",
+]
+
+MODEL_FEATURES = [
     "LotArea",
     "YearBuilt",
     "1stFlrSF",
@@ -71,15 +73,8 @@ uploaded_file = st.file_uploader(
 )
 
 
-# =========================================================
-# IF FILE WAS UPLOADED
-# =========================================================
-
-missing_features = []
-
 if uploaded_file is not None:
 
-    # Read CSV
     df = pd.read_csv(uploaded_file)
 
     st.subheader("Uploaded data")
@@ -89,15 +84,17 @@ if uploaded_file is not None:
         use_container_width=True
     )
 
-    # -----------------------------------------------------
-    # CHECK REQUIRED FEATURES
-    # -----------------------------------------------------
+
+    # =====================================================
+    # CHECK INPUT FEATURES
+    # =====================================================
 
     missing_features = [
         feature
-        for feature in FEATURES
+        for feature in INPUT_FEATURES
         if feature not in df.columns
     ]
+
 
     if missing_features:
 
@@ -106,132 +103,148 @@ if uploaded_file is not None:
             + ", ".join(missing_features)
         )
 
+
     else:
 
         st.success(
-            "CSV contains all 9 required features."
-        )
-
-        # Show detected columns
-        st.write("Required features:")
-
-        st.code(
-            "\n".join(FEATURES)
+            "CSV contains all required input features."
         )
 
 
-# =========================================================
-# PREDICTION
-# =========================================================
+        # =================================================
+        # FEATURE ENGINEERING
+        # =================================================
 
-if (
-    uploaded_file is not None
-    and not missing_features
-):
+        df["HouseAge"] = (
+            df["YrSold"] - df["YearBuilt"]
+        )
 
-    st.header("2. Generate predictions")
+        df["TotalFlrSF"] = (
+            df["1stFlrSF"] + df["2ndFlrSF"]
+        )
 
-    if st.button(
-        "Predict House Prices",
-        type="primary"
-    ):
 
-        # Reset file position
-        uploaded_file.seek(0)
+        st.subheader("Engineered features")
 
-        files = {
-            "file": (
-                uploaded_file.name,
-                uploaded_file,
-                "text/csv"
-            )
-        }
+        st.dataframe(
+            df[
+                [
+                    "YearBuilt",
+                    "YrSold",
+                    "HouseAge",
+                    "1stFlrSF",
+                    "2ndFlrSF",
+                    "TotalFlrSF",
+                ]
+            ],
+            use_container_width=True
+        )
 
-        try:
 
-            with st.spinner(
-                "Sending data to FastAPI..."
-            ):
+        # =================================================
+        # PREDICTION
+        # =================================================
 
-                response = requests.post(
-                    f"{FASTAPI_URL}/predict-csv",
-                    headers=HEADERS,
-                    files=files,
-                    timeout=120,
+        st.header("2. Generate predictions")
+
+
+        if st.button(
+            "Predict House Prices",
+            type="primary"
+        ):
+
+            # ---------------------------------------------
+            # Create exactly the 9 model features
+            # ---------------------------------------------
+
+            prediction_df = df[MODEL_FEATURES].copy()
+
+
+            # ---------------------------------------------
+            # Convert to CSV
+            # ---------------------------------------------
+
+            csv_data = prediction_df.to_csv(
+                index=False
+            ).encode("utf-8")
+
+
+            files = {
+                "file": (
+                    "predictions_input.csv",
+                    csv_data,
+                    "text/csv"
                 )
+            }
 
-            # -------------------------------------------------
-            # SUCCESS
-            # -------------------------------------------------
 
-            if response.status_code == 200:
+            try:
 
-                predictions = response.json()
+                with st.spinner(
+                    "Sending data to FastAPI..."
+                ):
 
-                # Store predictions
-                st.session_state[
-                    "predictions"
-                ] = predictions
+                    response = requests.post(
+                        f"{FASTAPI_URL}/predict-csv",
+                        headers=HEADERS,
+                        files=files,
+                        timeout=120,
+                    )
 
-                st.success(
-                    "Predictions generated successfully!"
-                )
 
-            # -------------------------------------------------
-            # AUTH ERROR
-            # -------------------------------------------------
+                if response.status_code == 200:
 
-            elif response.status_code == 401:
+                    predictions = response.json()
+
+                    st.session_state[
+                        "predictions"
+                    ] = predictions
+
+                    st.success(
+                        "Predictions generated successfully!"
+                    )
+
+
+                elif response.status_code == 401:
+
+                    st.error(
+                        "Authentication failed. "
+                        "Check your API key."
+                    )
+
+
+                else:
+
+                    st.error(
+                        f"FastAPI returned "
+                        f"HTTP {response.status_code}"
+                    )
+
+                    st.code(
+                        response.text
+                    )
+
+
+            except requests.exceptions.ConnectionError:
 
                 st.error(
-                    "Authentication failed. "
-                    "Check your API key."
+                    "Could not connect to FastAPI. "
+                    "Make sure uvicorn is running."
                 )
 
-            # -------------------------------------------------
-            # BAD REQUEST
-            # -------------------------------------------------
 
-            elif response.status_code == 400:
+            except requests.exceptions.Timeout:
 
                 st.error(
-                    f"Bad request:\n\n"
-                    f"{response.text}"
+                    "The FastAPI request timed out."
                 )
 
-            # -------------------------------------------------
-            # OTHER API ERROR
-            # -------------------------------------------------
 
-            else:
+            except Exception as e:
 
                 st.error(
-                    f"FastAPI returned "
-                    f"HTTP {response.status_code}"
+                    f"Unexpected error: {e}"
                 )
-
-                st.code(
-                    response.text
-                )
-
-        except requests.exceptions.ConnectionError:
-
-            st.error(
-                "Could not connect to FastAPI. "
-                "Make sure uvicorn is running."
-            )
-
-        except requests.exceptions.Timeout:
-
-            st.error(
-                "The FastAPI request timed out."
-            )
-
-        except Exception as e:
-
-            st.error(
-                f"Unexpected error: {e}"
-            )
 
 
 # =========================================================
@@ -252,16 +265,16 @@ if "predictions" in st.session_state:
     )
 
 
-
-    # -----------------------------------------------------
+    # =====================================================
     # PRICE SUMMARY
-    # -----------------------------------------------------
+    # =====================================================
 
     if "predicted_price" in prediction_df.columns:
 
         st.subheader("Predicted Prices")
 
         col1, col2, col3 = st.columns(3)
+
 
         with col1:
 
@@ -270,12 +283,14 @@ if "predictions" in st.session_state:
                 f"${prediction_df['predicted_price'].mean():,.2f}"
             )
 
+
         with col2:
 
             st.metric(
                 "Minimum Predicted Price",
                 f"${prediction_df['predicted_price'].min():,.2f}"
             )
+
 
         with col3:
 
@@ -285,19 +300,14 @@ if "predictions" in st.session_state:
             )
 
 
-
     # =====================================================
     # SAVE TO DATABRICKS
     # =====================================================
 
     st.header("4. Save predictions")
 
-    st.write(
-        "Save the generated predictions to Databricks."
-    )
-
     if st.button(
-        "💾 Save Predictions to Databricks"
+        "Save Predictions to Databricks"
     ):
 
         try:
@@ -313,6 +323,7 @@ if "predictions" in st.session_state:
                     timeout=120,
                 )
 
+
             if save_response.status_code == 200:
 
                 result = save_response.json()
@@ -323,11 +334,13 @@ if "predictions" in st.session_state:
                     f"to Databricks."
                 )
 
+
             elif save_response.status_code == 401:
 
                 st.error(
                     "Authentication failed."
                 )
+
 
             else:
 
@@ -340,24 +353,16 @@ if "predictions" in st.session_state:
                     save_response.text
                 )
 
+
         except requests.exceptions.ConnectionError:
 
             st.error(
                 "Could not connect to FastAPI."
             )
 
+
         except Exception as e:
 
             st.error(
                 f"Unexpected error: {e}"
             )
-
-
-    csv = prediction_df.to_csv(index=False).encode("utf-8")
-
-    st.download_button(
-        label="Download Predictions CSV",
-        data=csv,
-        file_name="iowa_house_predictions.csv",
-        mime="text/csv",
-    )
