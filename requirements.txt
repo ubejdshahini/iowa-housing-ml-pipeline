@@ -8,3 +8,4 @@ fastapi[standard]==0.141.1
 python-dotenv
 databricks-sql-connector
 streamlit
+tensorflow>=2.0,<3.0

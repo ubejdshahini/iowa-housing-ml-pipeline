@@ -38,19 +38,20 @@ Dataset (Kaggle)  ->  Notebook (analiza + model)  ->  iowa_model.pkl
 
 ## Struktura e repo-s
 
-```
+```text
 iowa-housing-ml-pipeline/
-├── data/train.csv          # dataset-i (1460 rreshta, 81 kolona)
-├── eda.py                  # analiza eksploruese (Person 1)
-├── model.ipynb             # features + modeli + v2 + grafiku (Person 2)
-├── iowa_model.pkl          # modeli final Random Forest v2
-├── iowa_features.pkl       # lista e 9 features (rendi i saktë)
-├── sample_houses.csv       # 5 shtëpi shembull (9 kolona)
-├── main.py                 # FastAPI: predict-csv + ruajtja në Databricks
-├── .env.example            # konfigurimi shembull pa sekrete
-├── results_summary.md      # përmbledhja e rezultateve
-├── requirements.txt
-└── README.md
+├── data/train.csv          # dataset (1460 rows, 81 columns)
+├── eda.py                  # EDA script (Person 1)
+├── model.ipynb             # Notebook with features, model training & comparison
+├── iowa_model.pkl          # Final Random Forest model
+├── iowa_features.pkl       # List of 9 features (ordered)
+├── sample_houses.csv       # Sample CSV (9 columns)
+├── main.py                 # FastAPI entry point
+├── .env.example            # Example env config (no secrets)
+├── results_summary.md      # Summary of results
+├── requirements.txt        # Dependencies
+├── README.md               # Project documentation
+└── tune_and_dl.py          # Tuning & DL script
 ```
 
 ---
@@ -93,9 +94,10 @@ TARGET = 'SalePrice'
 | :--- | :---: | :---: | :---: | :---: |
 | Baseline (median) | — | $56,621 | $85,142 | -0.0164 |
 | Random Forest v1 | 7 | $22,394 | $33,526 | 0.8424 |
-| **Random Forest v2 (final)** | **9** | **$22,010** | **$32,947** | **0.8478** |
+| **Random Forest v2 (tuned)** | **9** | **$21,245** | **$31,748** | **0.859** |
+| **Keras Neural Network** | **9** (scaled) | **$31,980** | **$41,680** | **0.756** |
 
-Feature engineering-u uli MAE-në me ~$384 (1.7%) dhe ngriti R² nga 0.8424 në 0.8478. Grafiku krahasues v1 vs v2 gjendet brenda `model.ipynb`.
+Hyperparameter tuning uli MAE-në me ~$1,149 nga v1 (5.1%) dhe R² u ngrit nga 0.8424 në **0.8587**. Keras NN kishte performancë më të dobët me MAE $31,980. Grafiku krahasues gjendet brenda `model.ipynb`.
 
 ---
 
@@ -104,7 +106,7 @@ Feature engineering-u uli MAE-në me ~$384 (1.7%) dhe ngriti R² nga 0.8424 në 
 Përgjegjës: Person 1 + Person 2.
 
 1. **Shkarko datasetin** nga Kaggle ('Housing Prices Competition') → `data/train.csv`.
-2. **Përgatit ambientin** — `pip install pandas numpy scikit-learn matplotlib joblib seaborn`.
+2. **Përgatit ambientin** — `pip install pandas numpy scikit-learn matplotlib joblib seaborn tensorflow`.
 3. **EDA** — `df.shape`, `df.info()`, `df.describe()`, histogrami i `SalePrice`.
 4. **Kontrollo vlerat që mungojnë** — `df.isna().sum()`.
 5. **Përzgjedh features** — 7 kolona numerike të lidhura fort me çmimin (të arsyetuara me korrelacion).

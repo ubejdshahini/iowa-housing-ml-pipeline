@@ -35,17 +35,35 @@ The final pipeline uses 9 features (7 raw + 2 engineered). Below are their Pears
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Baseline (Median Price)** | — | \$56,621 | \$85,142 | `-0.0164` | Benchmark |
 | **Random Forest v1** | 7 | \$22,394 | \$33,526 | `0.8424` | Superseded |
-| **Random Forest v2** | **9** | **\$22,010** | **\$32,947** | **`0.8478`** | **Final Selected Model** |
+| **Random Forest v2 (base)** | 9 | \$22,010 | \$32,947 | `0.8478` | Superseded |
+| **Random Forest v2 (Tuned)** | **9** | **\$21,245** | **\$31,748** | **`0.8587`** | **Final Selected Model** |
+| **Keras Neural Network** | **9** (scaled) | **\$31,980** | **\$41,680** | **`0.7564`** | **Evaluated (not deployed)** |
 
 ### Key Performance Highlights:
-- **Winning Model:** Random Forest Regressor (`n_estimators=300, min_samples_leaf=2, random_state=1, n_jobs=-1`).
-- **MAE Error Reduction vs. Baseline:** **\$34,611** (**61% error reduction**).
-- **MAE Improvement vs. v1:** **\$384** (1.72% error reduction).
-- **Variance Explained ($R^2$):** **84.78%** of sale price variance on unseen test data.
+- **Winning Model:** Random Forest (Tuned) — best params: `n_estimators=100, max_depth=10, min_samples_leaf=1, min_samples_split=5, max_features='sqrt'`.
+- **MAE Error Reduction vs. Baseline:** **\$35,376** (**62.5% error reduction**).
+- **MAE Improvement vs. v1 (7 feat):** **\$1,149** (5.1% reduction).
+- **Variance Explained ($R^2$):** **85.87%** of sale price variance on unseen test data.
 
 ---
 
-## 4. Artifact Verification
+## 4. Hyperparameter Tuning Details
+
+`RandomizedSearchCV` was run with **20 iterations, 5-fold CV**, scoring on `neg_mean_absolute_error`.
+
+| Hyperparameter | Search Space | Best Value |
+| :--- | :--- | :--- |
+| `n_estimators` | 100, 200, 300, 500 | **100** |
+| `max_depth` | 10, 20, 30, None | **10** |
+| `min_samples_split` | 2, 5, 10 | **5** |
+| `min_samples_leaf` | 1, 2, 4 | **1** |
+| `max_features` | 'sqrt', 'log2', 1.0 | **'sqrt'** |
+
+- **Best CV MAE (neg):** `−22,149.90`
+
+---
+
+## 5. Artifact Verification
 The exported artifacts were reloaded and verified on the sample test case:
 ```python
 {
@@ -61,12 +79,17 @@ The exported artifacts were reloaded and verified on the sample test case:
 }
 ```
 - **Loaded Model Type:** `RandomForestRegressor`
-- **Predicted SalePrice:** **\$204,259.49**
+- **Predicted SalePrice:** **\$204,259.49** *(from previous RF v2 baseline — rerun notebook to refresh)*
 
 ---
 
-## 5. Final Deliverables (Repo Root)
-1. **`model.ipynb`** — Complete Jupyter notebook with all executed cells.
-2. **`iowa_model.pkl`** — Final serialized Random Forest v2 model (~13.6 MB).
-3. **`iowa_features.pkl`** — Final serialized list of 9 features in order (< 1 KB).
-4. **`sample_houses.csv`** — 5 realistic test houses matching the 9 feature columns (< 1 KB).
+## 6. Final Deliverables (Repo Root)
+1. **`model.ipynb`** — Complete Jupyter notebook with EDA, feature engineering, training, tuning, DL comparison, and narrative.
+2. **`iowa_model.pkl`** — Final serialized **Tuned Random Forest** model (overwritten by `tune_and_dl.py` after beating baseline).
+3. **`iowa_features.pkl`** — Final serialized list of 9 features in order (< 1 KB). Immutable contract.
+4. **`sample_houses.csv`** — 5 sample houses in raw format (8 features + `YrSold`) for Streamlit upload.
+5. **`sample_houses_9feat.csv`** — 5 sample houses in 9-feature format for FastAPI `/predict-csv` testing.
+6. **`tune_and_dl.py`** — Stand-alone tuning + DL script. Reproduces all training steps and overwrites `iowa_model.pkl` if improved.
+7. **`nn_model.h5`** — Keras neural network weights (reference only, not deployed).
+8. **`results_summary.md`** — This document.
+9. **`requirements.txt`** — Pinned dependencies (`scikit-learn==1.8.0`, `tensorflow>=2.0,<3.0`, etc.).
