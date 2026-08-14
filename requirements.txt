@@ -7,3 +7,4 @@ joblib
 fastapi[standard]==0.141.1
 python-dotenv
 databricks-sql-connector
+streamlit
