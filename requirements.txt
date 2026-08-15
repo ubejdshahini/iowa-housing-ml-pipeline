@@ -4,7 +4,7 @@ matplotlib
 seaborn
 scikit-learn==1.8.0
 joblib
-fastapi[standard]==0.141.1
+fastapi[standard]
 python-dotenv
 databricks-sql-connector
 streamlit
