@@ -1,215 +1,210 @@
 # Iowa Housing ML Pipeline
 
-Feature engineering & ML pipeline for Iowa house price prediction — nga EDA te FastAPI + Streamlit + Databricks deployment.
+[![Python](https://img.shields.io/badge/Python-3.11--3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/App-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 
-Qëllimi: parashikojmë **çmimin e shtëpive** në Iowa me të dhëna reale nga Kaggle, dhe pastaj e vendosim modelin **online** në një aplikacion ku përdoruesi ngarkon një skedar dhe merr parashikimet.
+An end-to-end machine learning project that predicts residential sale prices from the Kaggle Iowa housing dataset. The repository covers exploratory data analysis, feature engineering, model training and comparison, a secured prediction API, an interactive web interface, and optional Databricks persistence.
 
----
+## Live demo
 
-## Arkitektura
+**[Open the Iowa House Price Predictor](https://iowa-housing-ml-pipeline-bbtk683ughoscdljd9txfn.streamlit.app/)**
 
+Upload a CSV of house attributes to generate price predictions. A ready-to-use example is included in [`sample_houses.csv`](sample_houses.csv).
+
+> The deployed application depends on its hosted API. If the service has been idle, the first request may take a little longer while the deployment wakes up.
+
+## Highlights
+
+- Tuned `RandomForestRegressor` trained on 1,460 homes from the Ames, Iowa dataset
+- Two engineered features: house age and total above-ground floor area
+- 62.5% lower mean absolute error than the median-price baseline
+- FastAPI backend with API-key authentication and CSV validation
+- Streamlit interface for batch predictions and feature previews
+- Optional storage of prediction results in Databricks SQL
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A[Kaggle housing data] --> B[EDA and feature engineering]
+    B --> C[Model training and tuning]
+    C --> D[Serialized Random Forest]
+    D --> E[FastAPI]
+    F[CSV upload] --> G[Streamlit app]
+    G --> E
+    E --> G
+    E --> H[(Databricks SQL)]
 ```
-Dataset (Kaggle)  ->  Notebook (analiza + model)  ->  iowa_model.pkl
-                                                          |
-                                                          v
-     Streamlit (web)  <->  FastAPI (API)  ->  Databricks (baza e të dhënave)
+
+The Streamlit app converts raw upload fields into the model's nine-feature contract, sends them to FastAPI, and displays the returned estimates. Users can then choose to persist those predictions to Databricks.
+
+## Model performance
+
+The models were evaluated on a held-out test set of 292 rows using an 80/20 split (`random_state=1`).
+
+| Model | Features | MAE | RMSE | R² |
+| --- | ---: | ---: | ---: | ---: |
+| Median baseline | — | $56,621 | $85,142 | -0.0164 |
+| Random Forest v1 | 7 | $22,394 | $33,526 | 0.8424 |
+| Random Forest v2 | 9 | $22,010 | $32,947 | 0.8478 |
+| **Tuned Random Forest v2** | **9** | **$21,245** | **$31,748** | **0.8587** |
+| Keras neural network | 9 | $31,980 | $41,680 | 0.7564 |
+
+The tuned Random Forest is the deployed model. It reduced MAE by $35,376 compared with the baseline and explains approximately 85.9% of sale-price variance in the test set. See [`results_summary.md`](results_summary.md) for feature correlations and tuning details.
+
+## Features
+
+The final model expects these columns in this exact order:
+
+| Feature | Description |
+| --- | --- |
+| `LotArea` | Lot size in square feet |
+| `YearBuilt` | Original construction year |
+| `1stFlrSF` | First-floor area in square feet |
+| `2ndFlrSF` | Second-floor area in square feet |
+| `FullBath` | Number of full bathrooms |
+| `BedroomAbvGr` | Bedrooms above ground |
+| `TotRmsAbvGrd` | Total rooms above ground |
+| `HouseAge` | `YrSold - YearBuilt` |
+| `TotalFlrSF` | `1stFlrSF + 2ndFlrSF` |
+
+The web app accepts the first seven raw features plus `YrSold`, then calculates `HouseAge` and `TotalFlrSF` automatically.
+
+## Run locally
+
+### Prerequisites
+
+- Python 3.11, 3.12, or 3.13
+- Git
+- Databricks SQL Warehouse credentials only if you want to save predictions
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/Dioniii/iowa-housing-ml-pipeline.git
+cd iowa-housing-ml-pipeline
+python -m venv .venv
 ```
 
-- **Notebook** — analizojmë të dhënat, zgjedhim/krijojmë features, trajnojmë modelin, e ruajmë si `.pkl`.
-- **Model (.pkl)** — 'truri' i trajnuar, i ngarkuar pa u ritrajnuar çdo herë.
-- **FastAPI** — ngarkon modelin dhe kthen parashikime kur i dërgohet një kërkesë.
-- **Streamlit** — faqja web ku përdoruesi ngarkon një CSV dhe sheh rezultatet.
-- **Databricks** — ruan parashikimet në një tabelë.
+Activate the environment:
 
----
+```bash
+# macOS/Linux
+source .venv/bin/activate
 
-## Statusi
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+```
 
-| Faza | Përgjegjës | Statusi |
-| :--- | :--- | :---: |
-| EDA (analiza e të dhënave) | Person 1 | ✅ |
-| Features + Modeli (v1, 7 features) | Person 2 | ✅ |
-| Feature engineering v2 (9 features) | Person 2 | ✅ |
-| Krahasimi v1 vs v2 (grafik në notebook) | Person 2 | ✅ |
-| Backend (FastAPI + Databricks) | Person 3 | ✅ |
-| Frontend (Streamlit) + Prezantimi | Person 4 | ⏳ |
+Install the dependencies:
 
----
+```bash
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
 
-## Struktura e repo-s
+### 2. Configure the API
+
+Copy `.env.example` to `.env` and replace the placeholder API key:
+
+```dotenv
+API_KEY=replace-with-a-long-random-value
+```
+
+To enable saving predictions, also provide the three Databricks connection values and the destination table shown in [`.env.example`](.env.example). The `.env` file is ignored by Git and must never be committed.
+
+Start FastAPI:
+
+```bash
+python -m uvicorn main:app --host 127.0.0.1 --port 8001 --reload
+```
+
+The health endpoint is available at `http://127.0.0.1:8001/`, and the interactive API documentation is at `http://127.0.0.1:8001/docs`.
+
+### 3. Configure and start Streamlit
+
+Create `.streamlit/secrets.toml`:
+
+```toml
+FASTAPI_URL = "http://127.0.0.1:8001"
+FASTAPI_API_KEY = "replace-with-the-same-api-key"
+```
+
+Then run:
+
+```bash
+python -m streamlit run app/streamlit_app.py
+```
+
+Open the displayed local URL and upload [`sample_houses.csv`](sample_houses.csv) to try the complete prediction flow.
+
+## API overview
+
+| Method | Endpoint | Authentication | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/` | None | Health check and loaded-model summary |
+| `POST` | `/predict-csv` | `X-API-Key` | Predict prices from a CSV up to 5 MB |
+| `POST` | `/save-predictions` | `X-API-Key` | Save prediction records to Databricks |
+
+For direct API testing, [`sample_houses_9feat.csv`](sample_houses_9feat.csv) already contains the engineered features required by `/predict-csv`.
+
+```bash
+curl -X POST "http://127.0.0.1:8001/predict-csv" \
+  -H "X-API-Key: replace-with-the-same-api-key" \
+  -F "file=@sample_houses_9feat.csv"
+```
+
+## Databricks table
+
+Create the configured destination table before using the save endpoint:
+
+```sql
+CREATE TABLE IF NOT EXISTS workspace.default.iowa_preditions (
+  lot_area DOUBLE,
+  year_built DOUBLE,
+  first_floor_sf DOUBLE,
+  second_floor_sf DOUBLE,
+  full_bath INT,
+  bedroom_above_gr INT,
+  total_rooms_above_grd INT,
+  house_age INT,
+  total_flr_sf DOUBLE,
+  predicted_price DOUBLE
+);
+```
+
+`iowa_preditions` retains the spelling used by the current application. Set `DATABRICKS_TABLE` if you use a different catalog, schema, or table name.
+
+## Repository structure
 
 ```text
-iowa-housing-ml-pipeline/
-├── data/train.csv          # dataset (1460 rows, 81 columns)
-├── eda.py                  # EDA script (Person 1)
-├── model.ipynb             # Notebook with features, model training & comparison
-├── iowa_model.pkl          # Final Random Forest model
-├── iowa_features.pkl       # List of 9 features (ordered)
-├── sample_houses.csv       # Sample CSV (9 columns)
-├── main.py                 # FastAPI entry point
-├── .env.example            # Example env config (no secrets)
-├── results_summary.md      # Summary of results
-├── requirements.txt        # Dependencies
-├── README.md               # Project documentation
-└── tune_and_dl.py          # Tuning & DL script
+.
+├── app/
+│   └── streamlit_app.py       # Interactive prediction interface
+├── data/
+│   └── train.csv              # Ames housing training data
+├── eda.py                     # Exploratory data analysis
+├── main.py                    # FastAPI application
+├── model.ipynb                # Analysis, training, and comparison notebook
+├── tune_and_dl.py             # Random Forest tuning and neural-network comparison
+├── iowa_model.pkl             # Deployed trained model
+├── iowa_features.pkl          # Ordered model feature contract
+├── sample_houses.csv          # Raw sample input for Streamlit
+├── sample_houses_9feat.csv    # Model-ready sample input for FastAPI
+├── results_summary.md         # Detailed experiment results
+├── pyproject.toml             # Project metadata and backend dependencies
+└── requirements.txt           # Full local runtime dependencies
 ```
 
----
+## Reproducing the analysis
 
-## Pergatitjet — çfarë duhet të instalojë secili
+- Run `eda.py` for the exploratory analysis.
+- Open `model.ipynb` to follow feature selection, training, evaluation, and model comparison.
+- Run `tune_and_dl.py` to reproduce hyperparameter tuning and the neural-network benchmark. TensorFlow is required only for this experiment and is not part of the application runtime dependencies.
 
-- **Python 3.10+**, **VS Code / Jupyter**, **Git**, llogari **Kaggle**, qasje në **Databricks**.
-- Secili instalon vetëm çka i duhet për pjesën e vet.
+Model artifacts are loaded with `joblib`. Only load `.pkl` files from trusted sources.
 
----
+## Data source
 
-## Ndarja e punës (4 persona)
-
-- **Person 1 — Të dhënat & EDA:** shkarkon datasetin, e kupton, kontrollon vlerat që mungojnë, korrelacionet.
-- **Person 2 — Features & Modeli:** përzgjedh/krijon features, trajnon e krahason modelet, eksporton `.pkl`.
-- **Person 3 — Backend (FastAPI + Databricks):** fut modelin, konfiguron `.env`, nis API-n dhe tabelën.
-- **Person 4 — Frontend (Streamlit) & Prezantimi:** nis faqen web, e lidh me API-n, verifikon Databricks, përgatit slajdet.
-
----
-
-## KONTRATA E FEATURES (9 features — kritike)
-
-Modeli final përdor **9 features** (7 origjinale + 2 të inxhinieruara). I njëjti rend duhet të përputhet në notebook, FastAPI, Streamlit dhe Databricks:
-
-```python
-FEATURES = [
-    'LotArea', 'YearBuilt', '1stFlrSF', '2ndFlrSF',
-    'FullBath', 'BedroomAbvGr', 'TotRmsAbvGrd',
-    'HouseAge',    # = YrSold - YearBuilt   (e re, v2)
-    'TotalFlrSF',  # = 1stFlrSF + 2ndFlrSF  (e re, v2)
-]
-TARGET = 'SalePrice'
-```
-
----
-
-## Rezultatet finale (test set — 292 rreshta)
-
-| Modeli | Features | MAE | RMSE | R² |
-| :--- | :---: | :---: | :---: | :---: |
-| Baseline (median) | — | $56,621 | $85,142 | -0.0164 |
-| Random Forest v1 | 7 | $22,394 | $33,526 | 0.8424 |
-| **Random Forest v2 (tuned)** | **9** | **$21,245** | **$31,748** | **0.859** |
-| **Keras Neural Network** | **9** (scaled) | **$31,980** | **$41,680** | **0.756** |
-
-Hyperparameter tuning uli MAE-në me ~$1,149 nga v1 (5.1%) dhe R² u ngrit nga 0.8424 në **0.8587**. Keras NN kishte performancë më të dobët me MAE $31,980. Grafiku krahasues gjendet brenda `model.ipynb`.
-
----
-
-# PJESA 1 — Notebook (✅ E PËRFUNDUAR)
-
-Përgjegjës: Person 1 + Person 2.
-
-1. **Shkarko datasetin** nga Kaggle ('Housing Prices Competition') → `data/train.csv`.
-2. **Përgatit ambientin** — `pip install pandas numpy scikit-learn matplotlib joblib seaborn tensorflow`.
-3. **EDA** — `df.shape`, `df.info()`, `df.describe()`, histogrami i `SalePrice`.
-4. **Kontrollo vlerat që mungojnë** — `df.isna().sum()`.
-5. **Përzgjedh features** — 7 kolona numerike të lidhura fort me çmimin (të arsyetuara me korrelacion).
-6. **Pastro / krijo features të reja (v2)** — `HouseAge`, `TotalFlrSF`; mbush vlerat që mungojnë me medianë.
-7. **Ndaj train/test** — 80/20, `random_state=1`.
-8. **Model baze (baseline)** — parashiko medianën për çdo shtëpi.
-9. **Trajno modelet** — Decision Tree (`max_depth=8, min_samples_leaf=5`) dhe Random Forest (`n_estimators=300, min_samples_leaf=2, n_jobs=-1`).
-10. **Vlerëso & krahaso** — MAE, RMSE, R² në test set.
-11. **Zgjidh modelin final** — ai me MAE më të vogël (Random Forest v2 fitoi).
-12. **Eksporto** — `joblib.dump` për `iowa_model.pkl` dhe `iowa_features.pkl`.
-13. **Verifiko** — ringarko `.pkl`-të dhe bëj një parashikim prove.
-14. **Krijo `sample_houses.csv`** — disa shtëpi shembull me emrat e kolonave saktësisht si 9 features.
-
-**Bonus (Person 2):** krahasimi v1 vs v2 me grafik (MAE/RMSE/R²) brenda `model.ipynb`.
-
----
-
-# PJESA 2 — Deployment (Backend ✅, Streamlit ⏳ — Person 3 + Person 4)
-
-Merrni setup-in sample `github.com/xoniks/databricks-fastapi-streamlit` dhe zëvendësoni modelin me tonin.
-
-1. **Merr kodin** — `git clone` të repo-s sample; brenda: `main.py`, `app/streamlit_app.py`, `requirements.txt`, `.pkl` shembull.
-2. **Ambienti virtual** — `python -m venv venv`, aktivizo, `pip install -r requirements.txt`.
-3. **Zëvendëso modelin** — kopjo `iowa_model.pkl` + `iowa_features.pkl` (9 features) në rrënjë.
-4. **Rregullo klasën Pydantic në `main.py`** — emrat e atributeve nuk mund të fillojnë me shifër, prandaj:
-
-   ```python
-   from pydantic import BaseModel, Field
-
-   class PredictionRow(BaseModel):
-       LotArea: int
-       YearBuilt: int
-       FirstFlrSF: int  = Field(alias="1stFlrSF")
-       SecondFlrSF: int = Field(alias="2ndFlrSF")
-       FullBath: int
-       BedroomAbvGr: int
-       TotRmsAbvGrd: int
-       HouseAge: int      # e re (v2)
-       TotalFlrSF: int    # e re (v2)
-
-       class Config:
-           populate_by_name = True
-   ```
-   Para `model.predict(...)`: `df = pd.DataFrame([row.model_dump(by_alias=True)])[features]`.
-
-5. **Pin sklearn** — modeli u ruajt me scikit-learn **1.8.0**; vendose të njëjtin version në `requirements.txt`.
-6. **Krijo `.env`** — kopjo `.env.example` në `.env` dhe plotëso `API_KEY`, `DATABRICKS_SERVER_HOSTNAME`, `DATABRICKS_HTTP_PATH`, `DATABRICKS_TOKEN` dhe `DATABRICKS_TABLE` (kurrë mos e ngarko `.env` në GitHub).
-7. **Nis FastAPI** — `py -m uvicorn main:app --host 127.0.0.1 --port 8001 --reload` → `http://127.0.0.1:8001/docs` → provo `/predict-csv` me `sample_houses.csv` (9 kolona). API-ja ofron `GET /` për health check, `POST /predict-csv` për parashikime dhe `POST /save-predictions` për ruajtje në Databricks; dy endpoint-et POST mbrohen me header-in `X-API-Key`.
-8. **Tabela në Databricks (2 kolona shtesë):**
-
-   ```sql
-   CREATE TABLE IF NOT EXISTS workspace.default.iowa_preditions (
-     lot_area DOUBLE, year_built DOUBLE,
-     first_floor_sf DOUBLE, second_floor_sf DOUBLE,
-     full_bath INT, bedroom_above_gr INT,
-     total_rooms_above_grd INT,
-     house_age INT, total_flr_sf DOUBLE,   -- kolonat e reja (v2)
-     predicted_price DOUBLE
-   );
-   ```
-   (Kujdes: emri 'iowa_preditions' ka gabim shtypi të qëllimshëm në kodin sample.)
-9. **Testo `/save-predictions`** — pastaj `SELECT` në tabelë për të parë që u ruajtën.
-10. **Konfiguro Streamlit** — `app/.streamlit/secrets.toml` me `FASTAPI_URL` dhe `FASTAPI_API_KEY` (i njëjti me `.env`). Shto 2 fushat e reja në formular ose llogariti `HouseAge`/`TotalFlrSF` automatikisht.
-11. **Test i plotë** — `streamlit run app/streamlit_app.py` → ngarko CSV → Predict → Save to Databricks → verifiko.
-
----
-
-# PJESA 3 — Prezantimi (⏳ NË VAZHDIM — Person 4)
-
-Struktura e sugjeruar e slajdeve:
-
-1. Hyrje — problemi dhe arkitektura (diagram).
-2. Të dhënat — nga vijnë, çka pamë në EDA (Person 1).
-3. Feature engineering — 7 features origjinale + PSE, dhe **v2: HouseAge, TotalFlrSF** + arsyet.
-4. Modeli — Baseline vs Decision Tree vs Random Forest; **grafiku v1 vs v2**.
-5. Demo live — Streamlit → Predict → Save në Databricks.
-6. Përfundim — çka mësuam; përmirësimi i vogël por real nga feature engineering-u.
-
-Bëni një provë gjenerale të plotë; mbani gati edhe screenshots si rezervë.
-
----
-
-## Lista e kontrollit final
-
-- [x] `train.csv` në `data/`.
-- [x] Notebook-u ekzekutohet nga fillimi në fund pa gabime.
-- [x] `iowa_model.pkl` + `iowa_features.pkl` (9 features) të krijuara dhe testuara.
-- [x] `sample_houses.csv` me 9 kolonat e sakta.
-- [x] Grafiku i krahasimit v1 vs v2 në notebook.
-- [x] FastAPI: klasa Pydantic me aliase + 9 features; `/predict-csv` kthen çmime.
-- [x] `requirements.txt` me sklearn version të pinuar.
-- [x] Tabela `iowa_preditions` me 2 kolonat e reja në Databricks.
-- [x] `/save-predictions` ruan rreshta që duken në Databricks.
-- [ ] Streamlit dërgon 9 features, bën parashikime + ruajtje.
-- [ ] Slajdet gati dhe prova gjenerale e bërë.
-
----
-
-## Gabimet më të shpeshta
-
-- **Emrat e kolonave nuk përputhen** — CSV/JSON duhet të kenë saktësisht 9 features si në `iowa_features.pkl`.
-- **`1stFlrSF`/`2ndFlrSF` si emra atributesh Python** — nuk lejohen; përdorni aliase (`FirstFlrSF`/`SecondFlrSF`).
-- **Harresa e 2 features të reja** — nëse FastAPI/Streamlit/Databricks s'shtojnë `HouseAge` dhe `TotalFlrSF`, deploy-i prishet.
-- **Version mismatch i sklearn** — pinoni 1.8.0.
-- **401 Unauthorized** — API key i Streamlit ≠ ai i `.env`.
-- **Gabim emri tabele** — kontrolloni 'iowa_preditions'.
+The project uses the Ames Housing data distributed through Kaggle's [House Prices: Advanced Regression Techniques](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques) competition.
