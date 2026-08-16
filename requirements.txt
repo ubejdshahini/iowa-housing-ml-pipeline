@@ -1,7 +1,7 @@
-fastapi[standard]
+fastapi[standard]==0.141.1
 streamlit
 joblib
 databricks-sql-connector
-scikit-learn
+scikit-learn==1.8.0
 python-dotenv
 requests

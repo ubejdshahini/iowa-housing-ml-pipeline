@@ -9,8 +9,12 @@ dependencies = [
     "pandas",
     "joblib",
     "python-dotenv",
-    # add your other actual deps here
+    "databricks-sql-connector",
 ]
+
+[tool.setuptools]
+py-modules = ["main"]
+packages = []
 
 [build-system]
 requires = ["setuptools>=68"]
